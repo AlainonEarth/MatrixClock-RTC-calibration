@@ -22,13 +22,13 @@ This repository contains two sketches to help you calibrate the RTC on your Matr
 If you are looking at this repository, you most likely know what you are doing. Therefore, loading firmware using an IDE or identifying your GPIO pins on your device/setup is beyond the scope of this repository. Also, setting up your GPS module is not covered here, and neither setting up a local ntp server (not that difficult). Firmware uploads are done like any other esp8266. Pay close attention to your serial SDA/SCL signal pins. I have several devices and 2 of them have different assigned serial pin mappings. 
 
 You might say, but I have a frequency counter, oscilloscope, etc.; I don’t need this. You are correct. These sketches are meant to be used for when you don’t have expensive lab equipment to calibrate these clocks or so that you incorporate this code into your self-correcting firmware. Although, with the GPS
-sketch, you could make the ultimate clock by disciplining the RTC permanently/constantly (instead of using the NTP sync). In my case, I have a device that will run unattended with no WiFi for a long time, and I need to squeeze the best accuracy without breaking the bank on lab equipment (and I don't want to permanently add a GPS module, antenna, yada yada). I would love to see how these sketches perform against lab equipment. I don't currently have these devices or access to them.
+sketch, you could make the ultimate clock by disciplining the RTC permanently/constantly (instead of using the NTP sync). In my case, I have a device that will run unattended with no WiFi for a long time, and I need to squeeze the best accuracy without breaking the bank on lab equipment (and I don't want to permanently add a GPS module, antenna, yada yada). I would love to see how these sketches perform against lab equipment. I don't currently have these devices nor access to them.
 
-The following approaches need you to connect the SQW pin from your DS3231M to your GPIO 12 on your ESP8266.  You must use a pull-up resistor for this implementation. For the first approach, it is HIGHLY recommended to use a local NTP server. You must specify your local IP address (or your ntp.local name if your network resolves it). Running the sketch with public internet-based NTP servers is less accurate. For the second approach, we will be using a GPS PPS signal as a frequency signal generator, in essence. These GPS modules cost as little as $10 US dollars; of course you can also use other inexpensive signal generators such as the transistor testers with signal generation, etc. (I got a GM328 tester that seems OK for this, not covered here though). The PPS signal will be connected to GPIO2 (this is a bootstrap pin, see instructions on this later). 
+The following approaches need you to connect the SQW pin from your DS3231M to your GPIO 12 on your ESP8266.  You must use a pull-up resistor for this implementation. For the first approach, it is HIGHLY recommended to use a local NTP server. You must specify your local IP address (or your ntp.local name if your network resolves it). Running the sketch with public internet-based NTP servers is less accurate. For the second approach, we will be using a GPS PPS signal as a frequency signal generator, in essence. These GPS modules cost as little as $10 US dollars; of course you can also use other inexpensive signal generators such as the transistor testers with signal generation, etc. (I got a GM328 tester that seems OK for this, not covered here though). The PPS signal will be connected to GPIO2 (this is a bootstrap pin, see instructions on this later).
 
 <img width="4032" height="2268" alt="2026-10-29-05-55-13-247 tmp" src="https://github.com/user-attachments/assets/c1477280-4b9c-448a-ac51-e651ed88b4da" />
 
-Nevermind the temperature sensors (DHT11s), The one at the bottom shows both connections (SQW and GPS PPS, GPIO 12 AND GPIO 2 respectively, yeah no other pins available here). The one at the bottom I got it pretty beat up by now :)
+Nevermind the temperature sensors (DHT11s), The one at the bottom shows both connections (SQW and GPS PPS, GPIO 12 AND GPIO 2 respectively, yeah no other pins available here). The one at the bottom, I got it pretty beat up by now :)
 
 <img width="1002" height="442" alt="Screenshot From 2026-10-29 06-09-59" src="https://github.com/user-attachments/assets/a0ab21fc-b634-492a-8029-af6c0b44c0be" />
 
@@ -59,7 +59,7 @@ Data validation: Rejects unsuitable NTP responses and applies sample-count, obse
 
 Runtime data: Keeps calibration statistics in RAM, so accumulated results are lost when the ESP8266 reboots.
 
-Approach I Configurable Variables. Default settings are recommended. 
+Approach I Configurable Variables. Feel free to tighten them up if you want a stricter run. Default settings are recommended.
 
 DS3231_SQW_PIN                 // SQW input pin
 
@@ -134,7 +134,7 @@ MAX_SQW_DIAG_PPM               // Maximum accepted SQW diagnostic drift
 
 APPROACH II
 
-The GPS PPS RTC Calibration Sketch is firmware designed to evaluate the timekeeping accuracy of a DS3231M RTC using a GPS receiver's precise 1 pulse-per-second (PPS) signal as a timing reference. The PPS signal will be connected to GPIO2. Because this is a special pin, you need to wait for the firmware to tell you that the setup is complete; only after that you make your connection to your PPS signal. This is due to the fact that the GPIO2 must be HIGH during boot. The signal from your GPS module alternates between HIGH and LOW, and if it is LOW, then your device will go into a firmware download status. This approach produces close results to the first approach, it is often within  +/- 2 steps. However, this is the approach to trust. Additional information available in the sketch.
+The GPS PPS RTC Calibration Sketch is firmware designed to evaluate the timekeeping accuracy of a DS3231M RTC using a GPS receiver's precise 1 pulse-per-second (PPS) signal as a timing reference. The PPS signal will be connected to GPIO2. Because this is a special pin, you need to wait for the firmware to tell you that the setup is complete; only after that you make your connection to your PPS signal. This is due to the fact that the GPIO2 must be HIGH during boot. The signal from your GPS module alternates between HIGH and LOW, and if it is LOW, then your device will go into a firmware download status. This approach produces close results to the first approach (see the current testing section for more details). This is the approach to trust. Additional configuration information available in the sketch.
 
 GPS PPS measurement: Uses the GPS receiver's 1 Hz PPS signal as a precision timing reference.
 
@@ -149,7 +149,7 @@ Diagnostic reporting: Reports measurement results and calibration information to
 Information is retained in RAM only.
 
 
-Approach II Configurable Variables. Default settings are recommended.
+Approach II Configurable Variables. Feel free to tighten them up if you want a stricter run. Default settings are recommended.
 
 RTC_I2C_ADDRESS                   // RTC I2C address
 
@@ -207,6 +207,9 @@ MIN_WINDOWS_FOR_RECOMMENDATION    // Minimum accepted windows for recommendation
 
 1-hour run.
 
+CURRENT TESTING
+
+After more testing with several devices, data shows a light overestimation with the NTP approach. The NTP approach (both methods) seems to be +4 steps ahead of the GPS PPS sketch (4 x 0.12) or +0.42 to +0.54 ppm drift (36.3 ms to 47.7 ms per day). The takeaway is this: if you don't have a GPS module, you could, in theory, subtract 4 steps from your NTP suggested values. Every device and network symmetry is different, but out of several devices, I'm yet to see one where the NTP does not overestimate vs the GPS PPS approach. Nonetheless, if you run the suggested NTP-based value, you are looking at about 17 secs of drift per year - if the conditions stay relatively the same throughout the year-. I was asked about the expected drift with the GPS approach, if the GPS PPS approach is the real McCoy, then I would say less than 2 seconds per year. The DS3231M has a calibration step resolution of ≈ 0.12, anything less than 0.06 goes to the AR lower number and vice versa. You are still left with that much residual drift regardless of. A 0.06 corresponds to 1.89 secs per year under the same testing conditions. Out of all the tested devices, residual drift was between 0.02 to 0.05 ppm with the gps sketch. This is not laboratory grade testing, so take this with a grain of salt.
 
 CREDITS and LICENSES
 
